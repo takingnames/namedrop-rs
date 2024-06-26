@@ -1,0 +1,15 @@
+[package]
+name = "namedrop-rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "namedrop"
+path = "src/lib.rs"
+
+[dependencies]
+axum = "0.7.5"
+oauth2 = "4.4.2"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+url = "2.5.2"
