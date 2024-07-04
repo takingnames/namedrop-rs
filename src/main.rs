@@ -10,20 +10,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
         //.callback_uri("https://client.anderspitman.com/callback")
         .build();
 
-    let mut flow = nd_client.start_auth_flow().await;
+    let flow = nd_client.start_auth_flow().await;
 
     println!("Browse to: {}", flow.get_auth_url());
 
-    let token = flow.wait_for_token().await;
+    //let token = flow.wait_for_token().await;
 
-    //let stdin = io::stdin();
-    //let input = &mut String::new();
-    //println!("Enter code: ");
-    //let _n = stdin.read_line(input).unwrap();
-    //let code = input.clone();
-    //let token = flow.exchange_code_for_token(code).await;
+    let stdin = io::stdin();
+    let input = &mut String::new();
+    println!("Enter code: ");
+    let _n = stdin.read_line(input).unwrap();
+    let code = input.clone();
+    println!("Enter state: ");
+    let _n = stdin.read_line(input).unwrap();
+    let state = input.clone();
 
-    dbg!(token);
+    flow.complete(code, state).await?;
 
     return Ok(());
 }

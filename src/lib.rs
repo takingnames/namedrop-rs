@@ -15,6 +15,8 @@ use axum::{
 use serde::Deserialize;
 
 use std::sync::Arc;
+use std::error::Error;
+use std::fmt;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Receiver;
 
@@ -90,7 +92,7 @@ impl Client {
         println!("code challenge:");
         dbg!(&pkce_challenge);
 
-        let (auth_url, _csrf_token) = client
+        let (auth_url, csrf_token) = client
             .authorize_url(CsrfToken::new_random)
             .add_scope(Scope::new("subdomain".to_string()))
             .set_pkce_challenge(pkce_challenge)
@@ -98,6 +100,7 @@ impl Client {
 
         Flow {
             auth_url,
+            state: csrf_token.secret().clone(),
             pkce_verifier,
             oauth_client: client,
             code_rx,
@@ -105,9 +108,24 @@ impl Client {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct FlowError {
+    reason: String,
+}
+
+impl fmt::Display for FlowError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.reason)
+    }
+}
+
+impl Error for FlowError {
+}
+
 #[derive(Debug)]
 pub struct Flow {
     auth_url: Url,
+    state: String,
     pkce_verifier: PkceCodeVerifier,
     oauth_client: BasicClient,
     code_rx: Option<Receiver<String>>,
@@ -118,15 +136,22 @@ impl Flow {
         self.auth_url.to_string()
     }
 
-    pub async fn wait_for_token(&mut self) -> String {
-        let code = self.code_rx.as_mut().unwrap().recv().await.unwrap();
+    //pub async fn wait_for_token(&mut self) {
+    //    let code = self.code_rx.as_mut().unwrap().recv().await.unwrap();
 
-        println!("Authorization code: {}", code);
+    //    println!("Authorization code: {}", code);
 
-        self.exchange_code_for_token(code).await
-    }
+    //    self.complete(code, "".to_string()).await
+    //}
 
-    pub async fn exchange_code_for_token<T: Into<String>>(&self, code: T) -> String {
+    pub async fn complete<T: Into<String> + ToString>(&self, code: T, state: T) -> Result<(), FlowError> {
+
+        if state.to_string() != self.state {
+            return Err(FlowError{
+                reason: "Invalid state".to_string(),
+            });
+        }
+
         let pkce_verifier = PkceCodeVerifier::new(self.pkce_verifier.secret().to_string());
 
         println!("send code verif:");
@@ -151,7 +176,7 @@ impl Flow {
                     Request(s) => {
                         println!("here2: {}", s);
                     },
-                    Parse(e, b) => {
+                    Parse(_, b) => {
                         println!("here3: {}", String::from_utf8_lossy(b));
                     },
                     Other(s) => {
@@ -159,7 +184,7 @@ impl Flow {
                     },
                 }
             }
-        }
+        };
 
         tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
@@ -179,7 +204,7 @@ impl Flow {
                     Request(s) => {
                         println!("here2: {}", s);
                     },
-                    Parse(e, b) => {
+                    Parse(_, b) => {
                         println!("here3: {}", String::from_utf8_lossy(b));
                     },
                     Other(s) => {
@@ -187,12 +212,9 @@ impl Flow {
                     },
                 }
             }
-        }
+        };
 
-        //dbg!(&token_result);
-
-        //token_result.unwrap().access_token().secret().to_string()
-        "".to_string()
+        Ok(())
     }
 }
 
