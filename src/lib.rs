@@ -1,3 +1,4 @@
+use oauth2::RequestTokenError::{ServerResponse,Request,Parse,Other};
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::async_http_client;
 use oauth2::{
@@ -66,19 +67,28 @@ impl Client {
         }
 
         let parsed = Url::parse(&callback_uri).unwrap();
-        let client_domain = parsed.host().unwrap().to_string();
+        let client_domain = parsed.host().unwrap();
+        let client_scheme = parsed.scheme();
+
+        let port_str = match parsed.port() {
+            Some(port) => format!(":{}", port),
+            None => "".to_string(),
+        };
 
         let server = format!("https://{}", server_domain);
 
         let client = BasicClient::new(
-            ClientId::new(client_domain.clone()),
+            ClientId::new(format!("{}://{}{}", client_scheme, client_domain, port_str)),
             Some(ClientSecret::new("".to_string())),
-            AuthUrl::new(format!("{}/oauth2/auth", server)).unwrap(),
-            Some(TokenUrl::new(format!("{}/oauth2/token", server)).unwrap()),
+            AuthUrl::new(format!("{}/namedrop/authorize", server)).unwrap(),
+            Some(TokenUrl::new(format!("{}/namedrop/token", server)).unwrap()),
         )
         .set_redirect_uri(RedirectUrl::new(callback_uri.clone()).unwrap());
 
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
+
+        println!("code challenge:");
+        dbg!(&pkce_challenge);
 
         let (auth_url, _csrf_token) = client
             .authorize_url(CsrfToken::new_random)
@@ -119,16 +129,70 @@ impl Flow {
     pub async fn exchange_code_for_token<T: Into<String>>(&self, code: T) -> String {
         let pkce_verifier = PkceCodeVerifier::new(self.pkce_verifier.secret().to_string());
 
+        println!("send code verif:");
+        dbg!(&pkce_verifier.secret());
+
         let token_result = self
             .oauth_client
             .exchange_code(AuthorizationCode::new(code.into().trim().into()))
             .set_pkce_verifier(pkce_verifier)
             .request_async(async_http_client)
-            .await
-            .unwrap();
+            .await;
 
         dbg!(&token_result);
-        token_result.access_token().secret().to_string()
+
+        match &token_result {
+            Ok(r) => println!("{:?}", r),
+            Err(e) => {
+                match e {
+                    ServerResponse(s) => {
+                        println!("here1: {}", s);
+                    },
+                    Request(s) => {
+                        println!("here2: {}", s);
+                    },
+                    Parse(e, b) => {
+                        println!("here3: {}", String::from_utf8_lossy(b));
+                    },
+                    Other(s) => {
+                        println!("here4: {}", s);
+                    },
+                }
+            }
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+
+        let ref_token_result = self
+            .oauth_client
+            .exchange_refresh_token(token_result.unwrap().refresh_token().unwrap())
+            .request_async(async_http_client)
+            .await;
+
+        match &ref_token_result {
+            Ok(r) => println!("{:?}", r),
+            Err(e) => {
+                match e {
+                    ServerResponse(s) => {
+                        println!("here1: {}", s);
+                    },
+                    Request(s) => {
+                        println!("here2: {}", s);
+                    },
+                    Parse(e, b) => {
+                        println!("here3: {}", String::from_utf8_lossy(b));
+                    },
+                    Other(s) => {
+                        println!("here4: {}", s);
+                    },
+                }
+            }
+        }
+
+        //dbg!(&token_result);
+
+        //token_result.unwrap().access_token().secret().to_string()
+        "".to_string()
     }
 }
 
