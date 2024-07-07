@@ -1,28 +1,16 @@
-use oauth2::RequestTokenError::{ServerResponse,Request,Parse,Other};
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::async_http_client;
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge,
-    PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
+    PkceCodeVerifier, RedirectUrl, Scope, TokenUrl,
 };
 use url::Url;
 
-use axum::{
-    extract::{Query, State},
-    routing::get,
-    Router,
-};
 use serde::Deserialize;
 
-use std::sync::Arc;
 use std::error::Error;
 use std::fmt;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::Receiver;
 
-struct AppState {
-    tx: mpsc::Sender<String>,
-}
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
@@ -44,31 +32,7 @@ impl Client {
             _ => self.server_domain.clone(),
         };
 
-        let mut code_rx = None;
-        let callback_uri;
-        if self.callback_uri.is_empty() {
-            let (tx, rx) = mpsc::channel(8);
-            code_rx = Some(rx);
-
-            let app_state = Arc::new(AppState { tx });
-
-            let app = Router::new()
-                .route("/callback", get(handler))
-                .with_state(app_state);
-            let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
-            let port = &listener.local_addr().unwrap().port();
-
-            callback_uri = format!("http://localhost:{}/callback", port);
-
-            tokio::spawn(async {
-                println!("Start server");
-                axum::serve(listener, app).await.unwrap();
-            });
-        } else {
-            callback_uri = self.callback_uri.clone();
-        }
-
-        let parsed = Url::parse(&callback_uri).unwrap();
+        let parsed = Url::parse(&self.callback_uri).unwrap();
         let client_domain = parsed.host().unwrap();
         let client_scheme = parsed.scheme();
 
@@ -85,7 +49,7 @@ impl Client {
             AuthUrl::new(format!("{}/namedrop/authorize", server)).unwrap(),
             Some(TokenUrl::new(format!("{}/namedrop/token", server)).unwrap()),
         )
-        .set_redirect_uri(RedirectUrl::new(callback_uri.clone()).unwrap());
+        .set_redirect_uri(RedirectUrl::new(self.callback_uri.clone()).unwrap());
 
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
@@ -103,7 +67,6 @@ impl Client {
             state: csrf_token.secret().clone(),
             pkce_verifier,
             oauth_client: client,
-            code_rx,
         }
     }
 }
@@ -128,21 +91,12 @@ pub struct Flow {
     state: String,
     pkce_verifier: PkceCodeVerifier,
     oauth_client: BasicClient,
-    code_rx: Option<Receiver<String>>,
 }
 
 impl Flow {
     pub fn get_auth_url(&self) -> String {
         self.auth_url.to_string()
     }
-
-    //pub async fn wait_for_token(&mut self) {
-    //    let code = self.code_rx.as_mut().unwrap().recv().await.unwrap();
-
-    //    println!("Authorization code: {}", code);
-
-    //    self.complete(code, "".to_string()).await
-    //}
 
     pub async fn complete(&self, code: String, state: String) -> Result<(), Box<dyn Error>> {
 
@@ -214,10 +168,4 @@ impl ClientBuilder {
             callback_uri: self.callback_uri.clone(),
         }
     }
-}
-
-async fn handler(State(state): State<Arc<AppState>>, Query(params): Query<Params>) -> String {
-    state.tx.send(params.code.clone()).await.unwrap();
-
-    format!("{params:?}")
 }

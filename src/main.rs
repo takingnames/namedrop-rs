@@ -7,7 +7,7 @@ use namedrop;
 async fn main() -> Result<(), Box<dyn Error>> {
     let nd_client = namedrop::ClientBuilder::new()
         .server_domain("anderspitman.com")
-        //.callback_uri("https://client.anderspitman.com/callback")
+        .callback_uri("https://client.anderspitman.com/callback")
         .build();
 
     let flow = nd_client.start_auth_flow().await;
