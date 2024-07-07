@@ -6,8 +6,21 @@ use oauth2::{
 };
 use url::Url;
 
-use std::error::Error;
 use std::fmt;
+
+#[derive(Debug, Clone)]
+pub struct Error {
+    reason: String,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.reason)
+    }
+}
+
+impl std::error::Error for Error {
+}
 
 
 #[derive(Debug)]
@@ -62,20 +75,6 @@ impl Client {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct FlowError {
-    reason: String,
-}
-
-impl fmt::Display for FlowError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.reason)
-    }
-}
-
-impl Error for FlowError {
-}
-
 #[derive(Debug)]
 pub struct Flow {
     auth_url: Url,
@@ -89,10 +88,10 @@ impl Flow {
         self.auth_url.to_string()
     }
 
-    pub async fn complete(&self, code: String, state: String) -> Result<(), Box<dyn Error>> {
+    pub async fn complete(&self, code: String, state: String) -> Result<(), Box<dyn std::error::Error>> {
 
         if state != self.state {
-            return Err(Box::new(FlowError{
+            return Err(Box::new(Error{
                 reason: "Invalid state".to_string(),
             }));
         }
