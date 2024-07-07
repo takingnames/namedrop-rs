@@ -7,11 +7,14 @@ use oauth2::{
 use url::Url;
 
 use std::fmt;
+use std::result;
 
 #[derive(Debug, Clone)]
 pub struct Error {
     reason: String,
 }
+
+type Result<T> = result::Result<T, Error>;
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -37,7 +40,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn start_auth_flow(&self) -> Result<Flow, Error> {
+    pub async fn start_auth_flow(&self) -> Result<Flow> {
         let server_domain = match self.server_domain.as_str() {
             "" => "takingnames.io".to_string(),
             _ => self.server_domain.clone(),
@@ -97,12 +100,12 @@ impl Flow {
         self.auth_url.to_string()
     }
 
-    pub async fn complete(&self, code: String, state: String) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn complete(&self, code: String, state: String) -> Result<()> {
 
         if state != self.state {
-            return Err(Box::new(Error{
+            return Err(Error{
                 reason: "Invalid state".to_string(),
-            }));
+            });
         }
 
         let pkce_verifier = PkceCodeVerifier::new(self.pkce_verifier.secret().to_string());
@@ -115,7 +118,9 @@ impl Flow {
             .exchange_code(AuthorizationCode::new(code.trim().into()))
             .set_pkce_verifier(pkce_verifier)
             .request_async(async_http_client)
-            .await?;
+            .await.map_err(|err| Error{
+                reason: err.to_string(),
+            });
 
         dbg!(&token);
 
