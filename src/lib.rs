@@ -6,18 +6,9 @@ use oauth2::{
 };
 use url::Url;
 
-use serde::Deserialize;
-
 use std::error::Error;
 use std::fmt;
 
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct Params {
-    #[serde(default)]
-    code: String,
-}
 
 #[derive(Debug)]
 pub struct Client {
