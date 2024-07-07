@@ -166,54 +166,6 @@ impl Flow {
 
         dbg!(&token);
 
-        //match &token_result {
-        //    Ok(r) => println!("{:?}", r),
-        //    Err(e) => {
-        //        match e {
-        //            ServerResponse(s) => {
-        //                println!("here1: {}", s);
-        //            },
-        //            Request(s) => {
-        //                println!("here2: {}", s);
-        //            },
-        //            Parse(_, b) => {
-        //                println!("here3: {}", String::from_utf8_lossy(b));
-        //            },
-        //            Other(s) => {
-        //                println!("here4: {}", s);
-        //            },
-        //        }
-        //    }
-        //};
-
-        //tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-
-        //let ref_token_result = self
-        //    .oauth_client
-        //    .exchange_refresh_token(token_result.unwrap().refresh_token().unwrap())
-        //    .request_async(async_http_client)
-        //    .await;
-
-        //match &ref_token_result {
-        //    Ok(r) => println!("{:?}", r),
-        //    Err(e) => {
-        //        match e {
-        //            ServerResponse(s) => {
-        //                println!("here1: {}", s);
-        //            },
-        //            Request(s) => {
-        //                println!("here2: {}", s);
-        //            },
-        //            Parse(_, b) => {
-        //                println!("here3: {}", String::from_utf8_lossy(b));
-        //            },
-        //            Other(s) => {
-        //                println!("here4: {}", s);
-        //            },
-        //        }
-        //    }
-        //};
-
         Ok(())
     }
 }
