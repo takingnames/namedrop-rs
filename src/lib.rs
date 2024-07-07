@@ -19,7 +19,14 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {
+impl std::error::Error for Error {}
+
+impl From<url::ParseError> for Error {
+    fn from(err: url::ParseError) -> Error {
+        Error{
+            reason: err.to_string(),
+        }
+    }
 }
 
 
@@ -30,14 +37,16 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn start_auth_flow(&self) -> Flow {
+    pub async fn start_auth_flow(&self) -> Result<Flow, Error> {
         let server_domain = match self.server_domain.as_str() {
             "" => "takingnames.io".to_string(),
             _ => self.server_domain.clone(),
         };
 
-        let parsed = Url::parse(&self.callback_uri).unwrap();
-        let client_domain = parsed.host().unwrap();
+        let parsed = Url::parse(&self.callback_uri)?;
+        let client_domain = parsed.host().ok_or(Error{
+            reason: "Missing client domain".to_string(),
+        })?;
         let client_scheme = parsed.scheme();
 
         let port_str = match parsed.port() {
@@ -50,10 +59,10 @@ impl Client {
         let client = BasicClient::new(
             ClientId::new(format!("{}://{}{}", client_scheme, client_domain, port_str)),
             Some(ClientSecret::new("".to_string())),
-            AuthUrl::new(format!("{}/namedrop/authorize", server)).unwrap(),
-            Some(TokenUrl::new(format!("{}/namedrop/token", server)).unwrap()),
+            AuthUrl::new(format!("{}/namedrop/authorize", server))?,
+            Some(TokenUrl::new(format!("{}/namedrop/token", server))?),
         )
-        .set_redirect_uri(RedirectUrl::new(self.callback_uri.clone()).unwrap());
+        .set_redirect_uri(RedirectUrl::new(self.callback_uri.clone())?);
 
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
@@ -66,12 +75,12 @@ impl Client {
             .set_pkce_challenge(pkce_challenge)
             .url();
 
-        Flow {
+        Ok(Flow {
             auth_url,
             state: csrf_token.secret().clone(),
             pkce_verifier,
             oauth_client: client,
-        }
+        })
     }
 }
 

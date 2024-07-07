@@ -10,7 +10,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .callback_uri("https://client.anderspitman.com/callback")
         .build();
 
-    let flow = nd_client.start_auth_flow().await;
+    let flow = nd_client.start_auth_flow().await?;
 
     println!("Browse to: {}", flow.get_auth_url());
 
