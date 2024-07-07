@@ -18,12 +18,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let stdin = io::stdin();
     let input = &mut String::new();
+
     println!("Enter code: ");
     let _n = stdin.read_line(input).unwrap();
-    let code = input.clone();
+    let code = input.trim().to_string();
+
+    *input = "".to_string();
+
     println!("Enter state: ");
     let _n = stdin.read_line(input).unwrap();
-    let state = input.clone();
+    let state = input.trim().to_string();
 
     flow.complete(code, state).await?;
 

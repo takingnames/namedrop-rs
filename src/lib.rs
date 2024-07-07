@@ -144,12 +144,12 @@ impl Flow {
     //    self.complete(code, "".to_string()).await
     //}
 
-    pub async fn complete<T: Into<String> + ToString>(&self, code: T, state: T) -> Result<(), FlowError> {
+    pub async fn complete(&self, code: String, state: String) -> Result<(), Box<dyn Error>> {
 
-        if state.to_string() != self.state {
-            return Err(FlowError{
+        if state != self.state {
+            return Err(Box::new(FlowError{
                 reason: "Invalid state".to_string(),
-            });
+            }));
         }
 
         let pkce_verifier = PkceCodeVerifier::new(self.pkce_verifier.secret().to_string());
@@ -157,62 +157,62 @@ impl Flow {
         println!("send code verif:");
         dbg!(&pkce_verifier.secret());
 
-        let token_result = self
+        let token = self
             .oauth_client
-            .exchange_code(AuthorizationCode::new(code.into().trim().into()))
+            .exchange_code(AuthorizationCode::new(code.trim().into()))
             .set_pkce_verifier(pkce_verifier)
             .request_async(async_http_client)
-            .await;
+            .await?;
 
-        dbg!(&token_result);
+        dbg!(&token);
 
-        match &token_result {
-            Ok(r) => println!("{:?}", r),
-            Err(e) => {
-                match e {
-                    ServerResponse(s) => {
-                        println!("here1: {}", s);
-                    },
-                    Request(s) => {
-                        println!("here2: {}", s);
-                    },
-                    Parse(_, b) => {
-                        println!("here3: {}", String::from_utf8_lossy(b));
-                    },
-                    Other(s) => {
-                        println!("here4: {}", s);
-                    },
-                }
-            }
-        };
+        //match &token_result {
+        //    Ok(r) => println!("{:?}", r),
+        //    Err(e) => {
+        //        match e {
+        //            ServerResponse(s) => {
+        //                println!("here1: {}", s);
+        //            },
+        //            Request(s) => {
+        //                println!("here2: {}", s);
+        //            },
+        //            Parse(_, b) => {
+        //                println!("here3: {}", String::from_utf8_lossy(b));
+        //            },
+        //            Other(s) => {
+        //                println!("here4: {}", s);
+        //            },
+        //        }
+        //    }
+        //};
 
-        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+        //tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
-        let ref_token_result = self
-            .oauth_client
-            .exchange_refresh_token(token_result.unwrap().refresh_token().unwrap())
-            .request_async(async_http_client)
-            .await;
+        //let ref_token_result = self
+        //    .oauth_client
+        //    .exchange_refresh_token(token_result.unwrap().refresh_token().unwrap())
+        //    .request_async(async_http_client)
+        //    .await;
 
-        match &ref_token_result {
-            Ok(r) => println!("{:?}", r),
-            Err(e) => {
-                match e {
-                    ServerResponse(s) => {
-                        println!("here1: {}", s);
-                    },
-                    Request(s) => {
-                        println!("here2: {}", s);
-                    },
-                    Parse(_, b) => {
-                        println!("here3: {}", String::from_utf8_lossy(b));
-                    },
-                    Other(s) => {
-                        println!("here4: {}", s);
-                    },
-                }
-            }
-        };
+        //match &ref_token_result {
+        //    Ok(r) => println!("{:?}", r),
+        //    Err(e) => {
+        //        match e {
+        //            ServerResponse(s) => {
+        //                println!("here1: {}", s);
+        //            },
+        //            Request(s) => {
+        //                println!("here2: {}", s);
+        //            },
+        //            Parse(_, b) => {
+        //                println!("here3: {}", String::from_utf8_lossy(b));
+        //            },
+        //            Other(s) => {
+        //                println!("here4: {}", s);
+        //            },
+        //        }
+        //    }
+        //};
 
         Ok(())
     }
