@@ -9,7 +9,7 @@ use namedrop;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let nd_client = namedrop::ClientBuilder::new()
-        .server_uri("anderspitman.com/namedrop")
+        .server_uri("https://anderspitman.com/namedrop")
         .callback_uri("https://client.anderspitman.com/callback")
         .build()?;
 

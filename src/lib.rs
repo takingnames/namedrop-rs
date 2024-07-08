@@ -143,7 +143,7 @@ impl ClientBuilder {
     pub fn build(&self) -> Result<Client> {
 
         let server_uri = match self.server_uri.as_str() {
-            "" => "takingnames.io".to_string(),
+            "" => "https://takingnames.io/namedrop".to_string(),
             _ => self.server_uri.clone(),
         };
 
@@ -158,13 +158,11 @@ impl ClientBuilder {
             None => "".to_string(),
         };
 
-        let server = format!("https://{}", server_uri);
-
         let client = BasicClient::new(
             ClientId::new(format!("{}://{}{}", client_scheme, client_domain, port_str)),
             Some(ClientSecret::new("".to_string())),
-            AuthUrl::new(format!("{}/authorize", server))?,
-            Some(TokenUrl::new(format!("{}/token", server))?),
+            AuthUrl::new(format!("{}/authorize", server_uri))?,
+            Some(TokenUrl::new(format!("{}/token", server_uri))?),
         )
         .set_redirect_uri(RedirectUrl::new(self.callback_uri.clone())?);
 
