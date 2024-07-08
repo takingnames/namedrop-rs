@@ -81,7 +81,7 @@ impl Client {
         Ok(Flow {
             auth_url,
             state: csrf_token.secret().clone(),
-            pkce_verifier,
+            pkce_verifier: pkce_verifier.secret().to_string(),
             oauth_client: client,
         })
     }
@@ -91,7 +91,7 @@ impl Client {
 pub struct Flow {
     auth_url: Url,
     state: String,
-    pkce_verifier: PkceCodeVerifier,
+    pkce_verifier: String,
     oauth_client: BasicClient,
 }
 
@@ -108,7 +108,7 @@ impl Flow {
             });
         }
 
-        let pkce_verifier = PkceCodeVerifier::new(self.pkce_verifier.secret().to_string());
+        let pkce_verifier = PkceCodeVerifier::new(self.pkce_verifier.clone());
 
         println!("send code verif:");
         dbg!(&pkce_verifier.secret());
