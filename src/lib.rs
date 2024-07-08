@@ -32,90 +32,48 @@ impl From<url::ParseError> for Error {
     }
 }
 
-
 #[derive(Debug)]
 pub struct Client {
-    server_uri: String,
-    callback_uri: String,
+    oauth_client: BasicClient,
 }
 
 impl Client {
-    pub async fn start_auth_flow(&self) -> Result<Flow> {
-        let server_uri = match self.server_uri.as_str() {
-            "" => "takingnames.io".to_string(),
-            _ => self.server_uri.clone(),
-        };
-
-        let parsed = Url::parse(&self.callback_uri)?;
-        let client_domain = parsed.host().ok_or(Error{
-            reason: "Missing client domain".to_string(),
-        })?;
-        let client_scheme = parsed.scheme();
-
-        let port_str = match parsed.port() {
-            Some(port) => format!(":{}", port),
-            None => "".to_string(),
-        };
-
-        let server = format!("https://{}", server_uri);
-
-        let client = BasicClient::new(
-            ClientId::new(format!("{}://{}{}", client_scheme, client_domain, port_str)),
-            Some(ClientSecret::new("".to_string())),
-            AuthUrl::new(format!("{}/authorize", server))?,
-            Some(TokenUrl::new(format!("{}/token", server))?),
-        )
-        .set_redirect_uri(RedirectUrl::new(self.callback_uri.clone())?);
-
+    pub async fn start_auth_flow(&self) -> Result<FlowData> {
+        
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
         println!("code challenge:");
         dbg!(&pkce_challenge);
 
-        let (auth_url, csrf_token) = client
+        let (auth_url, csrf_token) = self.oauth_client
             .authorize_url(CsrfToken::new_random)
             .add_scope(Scope::new("subdomain".to_string()))
             .set_pkce_challenge(pkce_challenge)
             .url();
 
-        Ok(Flow {
+        Ok(FlowData {
             auth_url,
             state: csrf_token.secret().clone(),
             pkce_verifier: pkce_verifier.secret().to_string(),
-            oauth_client: client,
         })
     }
-}
 
-#[derive(Debug)]
-pub struct Flow {
-    auth_url: Url,
-    state: String,
-    pkce_verifier: String,
-    oauth_client: BasicClient,
-}
+    pub async fn complete_auth_flow(&self, params: FlowCompleteParams) -> Result<()> {
 
-impl Flow {
-    pub fn get_auth_url(&self) -> String {
-        self.auth_url.to_string()
-    }
-
-    pub async fn complete(&self, code: String, state: String) -> Result<()> {
-
-        if state != self.state {
+        if params.callback_state != params.state {
             return Err(Error{
                 reason: "Invalid state".to_string(),
             });
         }
 
-        let pkce_verifier = PkceCodeVerifier::new(self.pkce_verifier.clone());
+        let pkce_verifier = PkceCodeVerifier::new(params.pkce_verifier);
 
         println!("send code verif:");
         dbg!(&pkce_verifier.secret());
 
         let token = self
             .oauth_client
-            .exchange_code(AuthorizationCode::new(code.trim().into()))
+            .exchange_code(AuthorizationCode::new(params.code.trim().into()))
             .set_pkce_verifier(pkce_verifier)
             .request_async(async_http_client)
             .await.map_err(|err| Error{
@@ -127,6 +85,22 @@ impl Flow {
         Ok(())
     }
 }
+
+#[derive(Debug)]
+pub struct FlowData {
+    pub auth_url: Url,
+    pub state: String,
+    pub pkce_verifier: String,
+}
+
+#[derive(Debug)]
+pub struct FlowCompleteParams {
+    pub state: String,
+    pub pkce_verifier: String,
+    pub code: String,
+    pub callback_state: String,
+}
+
 
 #[derive(Debug)]
 pub struct ClientBuilder {
@@ -166,10 +140,36 @@ impl ClientBuilder {
         self
     }
 
-    pub fn build(&self) -> Client {
-        Client {
-            server_uri: self.server_uri.clone(),
-            callback_uri: self.callback_uri.clone(),
-        }
+    pub fn build(&self) -> Result<Client> {
+
+        let server_uri = match self.server_uri.as_str() {
+            "" => "takingnames.io".to_string(),
+            _ => self.server_uri.clone(),
+        };
+
+        let parsed = Url::parse(&self.callback_uri)?;
+        let client_domain = parsed.host().ok_or(Error{
+            reason: "Missing client domain".to_string(),
+        })?;
+        let client_scheme = parsed.scheme();
+
+        let port_str = match parsed.port() {
+            Some(port) => format!(":{}", port),
+            None => "".to_string(),
+        };
+
+        let server = format!("https://{}", server_uri);
+
+        let client = BasicClient::new(
+            ClientId::new(format!("{}://{}{}", client_scheme, client_domain, port_str)),
+            Some(ClientSecret::new("".to_string())),
+            AuthUrl::new(format!("{}/authorize", server))?,
+            Some(TokenUrl::new(format!("{}/token", server))?),
+        )
+        .set_redirect_uri(RedirectUrl::new(self.callback_uri.clone())?);
+
+        Ok(Client {
+            oauth_client: client,
+        })
     }
 }
