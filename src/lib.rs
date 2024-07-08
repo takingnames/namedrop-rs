@@ -42,9 +42,6 @@ impl Client {
         
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
-        println!("code challenge:");
-        dbg!(&pkce_challenge);
-
         let (auth_url, csrf_token) = self.oauth_client
             .authorize_url(CsrfToken::new_random)
             .add_scope(Scope::new("subdomain".to_string()))
@@ -67,9 +64,6 @@ impl Client {
         }
 
         let pkce_verifier = PkceCodeVerifier::new(params.pkce_verifier);
-
-        println!("send code verif:");
-        dbg!(&pkce_verifier.secret());
 
         let token = self
             .oauth_client
