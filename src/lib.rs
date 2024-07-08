@@ -2,7 +2,7 @@ use oauth2::basic::BasicClient;
 use oauth2::reqwest::async_http_client;
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge,
-    PkceCodeVerifier, RedirectUrl, Scope, TokenUrl,
+    PkceCodeVerifier, RedirectUrl, Scope, TokenUrl, TokenResponse
 };
 use url::Url;
 
@@ -58,7 +58,7 @@ impl Client {
         })
     }
 
-    pub async fn complete_auth_flow(&self, params: FlowCompleteParams) -> Result<()> {
+    pub async fn complete_auth_flow(&self, params: FlowCompleteParams) -> Result<TokenData> {
 
         if params.callback_state != params.state {
             return Err(Error{
@@ -78,11 +78,12 @@ impl Client {
             .request_async(async_http_client)
             .await.map_err(|err| Error{
                 reason: err.to_string(),
-            });
+            })?;
 
-        dbg!(&token);
-
-        Ok(())
+        Ok(TokenData{
+            token: token.access_token().secret().to_owned(),
+            permissions: Vec::new(),
+        })
     }
 }
 
@@ -99,6 +100,18 @@ pub struct FlowCompleteParams {
     pub pkce_verifier: String,
     pub code: String,
     pub callback_state: String,
+}
+
+#[derive(Debug)]
+pub struct TokenData {
+    pub token: String,
+    pub permissions: Vec<Permission>,
+}
+
+#[derive(Debug)]
+pub struct Permission {
+    pub domain: String,
+    pub host: String,
 }
 
 

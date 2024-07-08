@@ -25,12 +25,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let parsed = Url::parse(&uri)?;
     let params: HashMap<_, _> = parsed.query_pairs().into_owned().collect();
 
-    nd_client.complete_auth_flow(FlowCompleteParams{
+    let token_data = nd_client.complete_auth_flow(FlowCompleteParams{
         state: flow_data.state,
         pkce_verifier: flow_data.pkce_verifier,
         code: params["code"].clone(),
         callback_state: params["state"].clone(),
     }).await?;
+
+    dbg!(token_data);
 
     return Ok(());
 }
