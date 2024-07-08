@@ -1,5 +1,7 @@
 use std::error::Error;
 use std::io;
+use url::Url;
+use std::collections::HashMap;
 
 use namedrop;
 
@@ -12,24 +14,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let flow = nd_client.start_auth_flow().await?;
 
-    println!("Browse to: {}", flow.get_auth_url());
+    println!("\nBrowse to: {}", flow.get_auth_url());
 
     //let token = flow.wait_for_token().await;
 
     let stdin = io::stdin();
     let input = &mut String::new();
 
-    println!("Enter code: ");
+    println!("\nEnter callback URI: ");
     let _n = stdin.read_line(input).unwrap();
-    let code = input.trim().to_string();
+    let uri = input.trim().to_string();
+    let parsed = Url::parse(&uri)?;
+    let params: HashMap<_, _> = parsed.query_pairs().into_owned().collect();
 
-    *input = "".to_string();
-
-    println!("Enter state: ");
-    let _n = stdin.read_line(input).unwrap();
-    let state = input.trim().to_string();
-
-    flow.complete(code, state).await?;
+    flow.complete(params["code"].clone(), params["state"].clone()).await?;
 
     return Ok(());
 }
