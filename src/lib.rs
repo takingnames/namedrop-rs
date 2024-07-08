@@ -35,15 +35,15 @@ impl From<url::ParseError> for Error {
 
 #[derive(Debug)]
 pub struct Client {
-    server_domain: String,
+    server_uri: String,
     callback_uri: String,
 }
 
 impl Client {
     pub async fn start_auth_flow(&self) -> Result<Flow> {
-        let server_domain = match self.server_domain.as_str() {
+        let server_uri = match self.server_uri.as_str() {
             "" => "takingnames.io".to_string(),
-            _ => self.server_domain.clone(),
+            _ => self.server_uri.clone(),
         };
 
         let parsed = Url::parse(&self.callback_uri)?;
@@ -57,13 +57,13 @@ impl Client {
             None => "".to_string(),
         };
 
-        let server = format!("https://{}", server_domain);
+        let server = format!("https://{}", server_uri);
 
         let client = BasicClient::new(
             ClientId::new(format!("{}://{}{}", client_scheme, client_domain, port_str)),
             Some(ClientSecret::new("".to_string())),
-            AuthUrl::new(format!("{}/namedrop/authorize", server))?,
-            Some(TokenUrl::new(format!("{}/namedrop/token", server))?),
+            AuthUrl::new(format!("{}/authorize", server))?,
+            Some(TokenUrl::new(format!("{}/token", server))?),
         )
         .set_redirect_uri(RedirectUrl::new(self.callback_uri.clone())?);
 
@@ -130,7 +130,7 @@ impl Flow {
 
 #[derive(Debug)]
 pub struct ClientBuilder {
-    server_domain: String,
+    server_uri: String,
     client_domain: String,
     callback_server: bool,
     callback_uri: String,
@@ -139,15 +139,15 @@ pub struct ClientBuilder {
 impl ClientBuilder {
     pub fn new() -> Self {
         ClientBuilder {
-            server_domain: "".to_string(),
+            server_uri: "".to_string(),
             client_domain: "".to_string(),
             callback_server: false,
             callback_uri: "".to_string(),
         }
     }
 
-    pub fn server_domain<T: Into<String>>(&mut self, domain: T) -> &mut Self {
-        self.server_domain = domain.into();
+    pub fn server_uri<T: Into<String>>(&mut self, uri: T) -> &mut Self {
+        self.server_uri = uri.into();
         self
     }
 
@@ -168,7 +168,7 @@ impl ClientBuilder {
 
     pub fn build(&self) -> Client {
         Client {
-            server_domain: self.server_domain.clone(),
+            server_uri: self.server_uri.clone(),
             callback_uri: self.callback_uri.clone(),
         }
     }

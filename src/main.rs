@@ -6,7 +6,7 @@ use namedrop;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let nd_client = namedrop::ClientBuilder::new()
-        .server_domain("anderspitman.com")
+        .server_uri("anderspitman.com/namedrop")
         .callback_uri("https://client.anderspitman.com/callback")
         .build();
 
